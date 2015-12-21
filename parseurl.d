@@ -647,82 +647,82 @@ class EncodingSchemeGB2312 : EncodingSchemeLatin1
  
         override dchar decode(ref const(ubyte)[] s)
         {
-        	if( s[0] < 0x80 )
-        		return cast(dchar)s[0];
-        	if( s.length < 2 )
-        		throw new EncodingException("Unable to decode text as " ~ toString()); 
-        	auto idx = gb2312_decmap[ s[0] ^ 0x80 ];
-        	auto val = s[1] ^ 0x80;
-        	if( idx.base < 0 || val < idx.bottom || val > idx.top )
-        		throw new EncodingException("Unable to decode text as " ~ toString()); 
+            if( s[0] < 0x80 )
+                return cast(dchar)s[0];
+            if( s.length < 2 )
+                throw new EncodingException("Unable to decode text as " ~ toString()); 
+            auto idx = gb2312_decmap[ s[0] ^ 0x80 ];
+            auto val = s[1] ^ 0x80;
+            if( idx.base < 0 || val < idx.bottom || val > idx.top )
+                throw new EncodingException("Unable to decode text as " ~ toString()); 
 
-        	auto res = __gb2312_decmap[idx.base + val - idx.bottom];
-        	if( res == U)
-				throw new EncodingException("Unable to decode text as " ~ toString());         		
+            auto res = __gb2312_decmap[idx.base + val - idx.bottom];
+            if( res == U)
+                throw new EncodingException("Unable to decode text as " ~ toString());
 
-			return res;
+            return res;
         }
     }
 }
 
 dchar decodeGB2312(ref ubyte[] s)
 {
-	dchar res = U;
+    dchar res = U;
 
-	if( s.length > 0 )
-	{
-		if( s[0] < 0x80 )
-		{
-			res = cast(dchar)s[0];
-			s = s[1..$];			
-		}
-		else if( s.length < 2 )
-		{
-			s = s[1..$];
-		}
-		else
-		{
-			auto idx = gb2312_decmap[ s[0] ^ 0x80 ];
-			auto val = s[1] ^ 0x80;
+    if( s.length > 0 )
+    {
+        if( s[0] < 0x80 )
+        {
+            res = cast(dchar)s[0];
+            s = s[1..$];
+        }
+        else if( s.length < 2 )
+        {
+            s = s[1..$];
+        }
+        else
+        {
+            auto idx = gb2312_decmap[ s[0] ^ 0x80 ];
+            auto val = s[1] ^ 0x80;
 
-			if( idx.base >= 0 && val >= idx.bottom && val <= idx.top )
-			{
-				res = __gb2312_decmap[idx.base + val - idx.bottom];			
-			}
+            if( idx.base >= 0 && val >= idx.bottom && val <= idx.top )
+            {
+                res = __gb2312_decmap[idx.base + val - idx.bottom];
+            }
 
-			s = s[2..$];
-		}
-	}
+            s = s[2..$];
+        }
+    }
 
-	return res;
+    return res;
 }
 
 auto Get(string url)
 {
-	auto http = HTTP(url);
-	ubyte[] content;
-	http.onReceive = (ubyte[] data) 
-	{
-		content ~= data;
-		return data.length;
-	};
-	http.perform();
-	return content;
+    auto http = HTTP(url);
+    ubyte[] content;
+    http.onReceive = (ubyte[] data) 
+    {
+        content ~= data;
+        return data.length;
+    };
+    http.perform();
+    return content;
 }
 
 auto GetAsUtf8(string url)
 {
-	auto content = Get(url);
+    auto content = Get(url);
 
-	dchar[] str;
+    dchar[] str;
 
-	while( content.length > 0 )
-	{
-		str ~= decodeGB2312(content);
-	}
+    while( content.length > 0 )
+    {
+        str ~= decodeGB2312(content);
+    }
 
-	auto s = std.utf.toUTF8(str);	
-	return s;
+    auto s = std.utf.toUTF8(str);
+    return s;
 }
 
 import std.system : Endian;
@@ -731,90 +731,90 @@ import std.traits;
 T[] CastInPlace(T,Endian endianess = Endian.bigEndian)(ubyte[] bytes)
 if( isIntegral!T )
 {
-	import std.bitmanip;
-	auto ptr = cast(T*)bytes.ptr;
-	auto sz = bytes.length/T.sizeof;
-	T[] res = ptr[0..sz];
+    import std.bitmanip;
+    auto ptr = cast(T*)bytes.ptr;
+    auto sz = bytes.length/T.sizeof;
+    T[] res = ptr[0..sz];
 
-	while(bytes.length > 0 && bytes.length / T.sizeof > 0 )
-	{
-		ubyte[T.sizeof] bs = bytes[0..T.sizeof];
-		if( endianess == Endian.bigEndian )			
-			res[0] = bigEndianToNative!(T)(bs);
-		else
-			res[0] = littleEndianToNative!T(bs); 
-		bytes = bytes[T.sizeof..$];
-		res = res[1..$];
-	}
+    while(bytes.length > 0 && bytes.length / T.sizeof > 0 )
+    {
+        ubyte[T.sizeof] bs = bytes[0..T.sizeof];
+        if( endianess == Endian.bigEndian )
+            res[0] = bigEndianToNative!(T)(bs);
+        else
+            res[0] = littleEndianToNative!T(bs); 
+        bytes = bytes[T.sizeof..$];
+        res = res[1..$];
+    }
 
-	return ptr[0..sz];
+    return ptr[0..sz];
 }
 
 unittest
 {
-	ubyte[] b = [ 0x00, 0x01, 0x01, 0x00, 0x01, 0x02];
-	assert(CastInPlace!ushort(b) == [1,256,258]);
+    ubyte[] b = [ 0x00, 0x01, 0x01, 0x00, 0x01, 0x02];
+    assert(CastInPlace!ushort(b) == [1,256,258]);
 }
 
 void main()
 {
-	auto host = "http://www.060s.com/special/gp/";
-	auto content = GetAsUtf8(host ~ "gp_jp.htm");	
-	import std.regex;
-	import std.string;
-	import std.bitmanip,std.conv;
-	auto ctr = ctRegex!("(images_.*?php)");
-	auto ctr1 = ctRegex!("(http://www3.*?gif)");
-	foreach(c; matchAll(content, ctr))
-	{
-		/*/
-		auto s = c.hit;
-		s = s[s.lastIndexOf('/')+1..$];
-		writeln(s);
-		writeln(c.hit);
-		/*/
-		auto page = GetAsUtf8(host ~ c.hit);
-		foreach( d; matchAll(page, ctr1))
-		{
-			auto fname = d.hit[d.hit.lastIndexOf('/')+1..$];
-			auto basename = fname[0..fname.lastIndexOf('.')];			
-			ubyte[] bb;
-			while( basename.length > 0 )
-			{
-				if( basename[0] == '%')
-				{
-					if( basename.length >= 3 )
-					{
-						auto t = basename[1..3];
-						auto b = parse!ubyte(t, 16);
-						bb ~= b;
-						basename = basename[3..$];
-					}
-					else
-					{
+    auto host = "http://www.060s.com/special/gp/";
+    auto content = GetAsUtf8(host ~ "gp_jp.htm");
+    import std.regex;
+    import std.string;
+    import std.bitmanip,std.conv;
+    auto ctr = ctRegex!("(images_.*?php)");
+    auto ctr1 = ctRegex!("(http://www3.*?gif)");
+    foreach(c; matchAll(content, ctr))
+    {
+        /*/
+        auto s = c.hit;
+        s = s[s.lastIndexOf('/')+1..$];
+        writeln(s);
+        writeln(c.hit);
+        /*/
+        auto page = GetAsUtf8(host ~ c.hit);
+        foreach( d; matchAll(page, ctr1))
+        {
+            auto fname = d.hit[d.hit.lastIndexOf('/')+1..$];
+            auto basename = fname[0..fname.lastIndexOf('.')];
+            ubyte[] bb;
+            while( basename.length > 0 )
+            {
+                if( basename[0] == '%')
+                {
+                    if( basename.length >= 3 )
+                    {
+                        auto t = basename[1..3];
+                        auto b = parse!ubyte(t, 16);
+                        bb ~= b;
+                        basename = basename[3..$];
+                    }
+                    else
+                    {
 
-					}
-				}
-				else
-				{
-					if( basename[0] < 0x80 )
-					{
-						bb ~= cast(ubyte)(basename[0]);
-						basename = basename[1..$];
-					}
-				}
-			}
+                    }
+                }
+                else
+                {
+                    if( basename[0] < 0x80 )
+                    {
+                        bb ~= cast(ubyte)(basename[0]);
+                        basename = basename[1..$];
+                    }
+                }
+            }
 
-			dchar[] dd;
-			while( bb.length > 0 )
-			{
-				dd ~= decodeGB2312(bb);
-			}
+            dchar[] dd;
+            while( bb.length > 0 )
+            {
+                dd ~= decodeGB2312(bb);
+            }
 
-			auto finalName = std.utf.toUTF8(dd);
-			auto bytes = Get(d.hit);
-			std.file.write("d:/gp/" ~ finalName ~ ".gif", bytes);
-		}
-		//*/
-	}
+            auto finalName = std.utf.toUTF8(dd);
+            auto bytes = Get(d.hit);
+            std.file.write("d:/gp/" ~ finalName ~ ".gif", bytes);
+        }
+        //*/
+    }
 }
