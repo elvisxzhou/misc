@@ -4071,7 +4071,7 @@ private void internal_encodeGB2312(ref std.array.Appender!string res, wchar c)
 
         if( idx.base >= 0 && val >= idx.bottom && val <= idx.top )
         {
-            auto r = __gb2312_decmap[idx.base + val - idx.bottom];		  		
+            auto r = __gbcommon_encmap[idx.base + val - idx.bottom];		  		
 			res.put(cast(char)(( r >> 8 ) | 0x80));
 			res.put(cast(char)(( r & 0xFF ) | 0x80));              
         }
@@ -4088,7 +4088,9 @@ wstring decodeGB2312( string s )
 
     while( s.length > 0 )
     {
-        if( s[0] < 0x80 )
+    	res.put( decodeGB2312!(immutable char)(s) );
+    }
+     /*   if( s[0] < 0x80 )
         {
             res.put(cast(wchar)s[0]);
             s = s[1..$];
@@ -4115,11 +4117,12 @@ wstring decodeGB2312( string s )
             s = s[2..$];
         }
     }
-
+*/
     return res.data;	
 }
 
-wchar decodeGB2312(ref ubyte[] s)
+wchar decodeGB2312(T)(ref T[] s)
+if( T.sizeof == 1 )
 {
     wchar res = U;
 
@@ -4154,21 +4157,25 @@ wchar decodeGB2312(ref ubyte[] s)
 unittest
 {
 	auto str = "你好"w;
-	writeln(str);
-	writeln(std.utf.toUTF8(str));	
+	auto gb2312Str = encodeGB2312(str);
+	writeln(gb2312Str);
+	auto str1 = decodeGB2312!(immutable char)(gb2312Str);
+	writeln(str1);
+	writeln(gb2312Str);
+	//assert(str == str1);
 }
 
 auto Get(string url)
 {
     auto http = HTTP(url);
-    ubyte[] content;
+    auto content = std.array.appender!(ubyte[])();    
     http.onReceive = (ubyte[] data) 
     {
-        content ~= data;
+        content.put(data);
         return data.length;
     };
     http.perform();
-    return content;
+    return content.data;
 }
 
 auto GetAsUtf8(string url)
@@ -4219,9 +4226,6 @@ unittest
 
 void main()
 {
-	writeln("test");
-	return;
-
     auto host = "http://www.060s.com/special/gp/";
     auto content = GetAsUtf8(host ~ "gp_jp.htm");
     import std.regex;
